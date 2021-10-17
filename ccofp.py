@@ -1,9 +1,10 @@
 __all__ = ['CCOFP']
+import os
 import sys
 import tokenize
-from collections import defaultdict
 import ast
-from ast import iter_child_nodes
+import threading
+from collections import defaultdict
 
 class ASTVisitor():
     def __init__(self):
@@ -190,6 +191,24 @@ class CCOFP():
                 yield graph.lineno, graph.column, text, type(self)
 
 
+class MyThread(threading.Thread):  # TODO: user thread to calculate cc for directory
+
+    def __init__(self, func, args=()):
+        super(MyThread, self).__init__()
+        self.func = func
+        self.args = args
+        self.result = None
+
+    def run(self):
+        self.result = self.func(*self.args)
+
+    def get_result(self):
+        try:
+            return self.result
+        except Exception as e:
+            return None
+
+
 def get_code_complexity(code, threshold=7, filename=''):
     assert filename
     try:
@@ -210,12 +229,6 @@ def get_code_complexity(code, threshold=7, filename=''):
     return len(complx)
 
 
-def get_module_complexity(module_path, threshold=7):
-    """Returns the complexity of a module"""
-    code = _read(module_path)
-    return get_code_complexity(code, threshold, filename=module_path)
-
-
 def _read(filename):
     if (2, 5) < sys.version_info < (3, 0):
         with open(filename, 'rU') as f:
@@ -231,5 +244,23 @@ def _read(filename):
                 return f.read()
         with open(filename, 'r', encoding=encoding) as f:
             return f.read()
+
+
+def get_module_complexity(module_path, threshold=7):
+    assert os.path.isdir(module_path)
+
+    t = []
+    result = {}
+    for dir,folder,file in os.walk(module_path):
+        code = _read(file)
+        th = MyThread(get_code_complexity, args=(code, threshold, file))
+        t.append(th)
+        th.start()
+        th.join()
+        result[file] = th.get_result()
+    return result
+
+
+
 
 
