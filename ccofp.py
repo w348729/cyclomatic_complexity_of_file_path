@@ -2,6 +2,7 @@ __all__ = ['CCOFP']
 import sys
 import tokenize
 from collections import defaultdict
+import ast
 from ast import iter_child_nodes
 
 class ASTVisitor():
@@ -47,9 +48,6 @@ class PathGraph(object):
         self.nodes[n2] = []
 
     def complexity(self):
-        """ Return the complexity for the graph.
-            V-E+2
-        """
         num_edges = sum([len(n) for n in self.nodes.values()])
         num_nodes = len(self.nodes)
         return num_edges - num_nodes + 2
@@ -81,7 +79,7 @@ class PathGraphingAstVisitor(ASTVisitor):
 
         name = f'{node.lineno}, {node.col_offset}, {entity}'
 
-        if self.graph is not None:
+        if not self.graph:
             # closure
             pathnode = self.appendPathNode(name)
             self.tail = pathnode
@@ -119,7 +117,7 @@ class PathGraphingAstVisitor(ASTVisitor):
             lineno = 0
         else:
             lineno = node.lineno
-        name = "Stmt %d" % lineno
+        name = f'ss {node.lineno}'
         self.appendPathNode(name)
 
     def default(self, node, *args):
@@ -129,7 +127,7 @@ class PathGraphingAstVisitor(ASTVisitor):
             super(PathGraphingAstVisitor, self).default(node, *args)
 
     def visitLoop(self, node):
-        name = "Loop %d" % node.lineno
+        name = f'loop {node.lineno}'
         self._subgraph(node, name)
 
     visitAsyncFor = visitFor = visitWhile = visitLoop
@@ -144,7 +142,7 @@ class PathGraphingAstVisitor(ASTVisitor):
             self.graph = PathGraph(name, name, node.lineno, node.col_offset)
             pathnode = PathNode(name)
             self._subgraph_parse(node, pathnode, extra_blocks)
-            self.graphs["%s%s" % (self.classname, name)] = self.graph
+            self.graphs[f'{self.classname}-{name}'] = self.graph
             self.reset()
         else:
             pathnode = self.appendPathNode(name)
@@ -166,7 +164,7 @@ class PathGraphingAstVisitor(ASTVisitor):
         else:
             loose_ends.append(pathnode)
         if pathnode:
-            bottom = PathNode("", look='point')
+            bottom = PathNode('', look='point')
             for le in loose_ends:
                 self.graph.connect(le, bottom)
             self.tail = bottom
@@ -204,7 +202,7 @@ def get_code_complexity(code, threshold=7, filename=''):
     complx = []
     CCOFP.max_complexity = threshold
     for lineno, offset, text, check in CCOFP(tree, filename).run():
-        complx.append('%s:%d:1: %s' % (filename, lineno, text))
+        complx.append(f'{filename}:{lineno}:1:{text}')
 
     if len(complx) == 0:
         return 0
@@ -234,33 +232,4 @@ def _read(filename):
         with open(filename, 'r', encoding=encoding) as f:
             return f.read()
 
-
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    opar = optparse.OptionParser()
-    opar.add_option("-d", "--dot", dest="dot",
-                    help="output a graphviz dot file", action="store_true")
-    opar.add_option("-m", "--min", dest="threshold",
-                    help="minimum complexity for output", type="int",
-                    default=1)
-
-    options, args = opar.parse_args(argv)
-
-    code = _read(args[0])
-    tree = compile(code, args[0], "exec", ast.PyCF_ONLY_AST)
-    visitor = PathGraphingAstVisitor()
-    visitor.preorder(tree, visitor)
-
-    if options.dot:
-        print('graph {')
-        for graph in visitor.graphs.values():
-            if (not options.threshold or
-                    graph.complexity() >= options.threshold):
-                graph.to_dot()
-        print('}')
-    else:
-        for graph in visitor.graphs.values():
-            if graph.complexity() >= options.threshold:
-                print(graph.name, graph.complexity())
 
