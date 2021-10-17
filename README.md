@@ -9,7 +9,10 @@ pipenv shell
 pipenv install
 ```
 
+# Installation
+```
+pip install git+ssh@github.com:w348729/cyclomatic_complexity_of_file_path.git
+
+```
 # Instructions
-To use this module, simply import ccofp, pass in the file path as string, then  call get_code_complexity() method
-## Author
-Alex
+To use this module, simply import ccofp, pass in the file path as string, then call get_code_complexity() method
