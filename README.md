@@ -15,4 +15,4 @@ pip install git+ssh@github.com:w348729/cyclomatic_complexity_of_file_path.git
 
 ```
 # Instructions
-To use this module, simply import ccofp, pass in the file path as string, then call get_code_complexity() method, if the file path is dir, then call get_module_complexity
+To use this module, simply import ccofp, pass in the file path as string, then call get_code_complexity() method, if the file path is dir, then call get_module_complexity, this will use multi-treading to calculate each file cc (no time for testing)
